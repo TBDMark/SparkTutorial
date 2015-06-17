@@ -1,0 +1,97 @@
+---
+title: "Install Spark 1.4 for RStudio"
+output: html_document
+---
+
+Some instructions to install Spark 1.4 and SparkR for RStudio on a local Mac machine (running OS X Yosemite), using RStudio and the DataFrame functionality as a demo.
+
+<h3>Prerequisites:</h3>
+
+* Ensure Java JDK v. 6 or greater is installed: http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html 
+* Download Spark from the “Downloads” page: http://spark.apache.org/downloads.html 
+    + I used this package:  Spark 1.4, Pre build for Hadoop 2.6 and later
+
+![](sparkdownload.png) 
+ 
+<h3>Instructions:</h3>
+
+- Unizp package to your desired location – in my case, for testing, I used the Downloads folder (anywhere you want to work with this package is fine)
+- Open a terminal window and command line to the location of the Spark directory (.eg cd Downloads/spark-1.4.0-bin-hadoop2.6)
+
+![](cmd1.png) 
+
+- Run ./bin/spark-shell the first time, to install dependencies and launch a local Spark instance
+
+![](cmd2.png)
+
+This should run and take you to a Scala prompt.  We will close and launch another instance from RStudio, but doing this installed and launched the dependencies the first time I loaded up Spark.  It will launch a localhost instance of Spark, accessible via localhost:4040, or 4041
+
+<h3>RStudio instructions:</h3>
+
+- This section enables and allows for usage of the features built in to Spark, called SparkR: http://spark.apache.org/docs/latest/sparkr.html 
+- Switching to RStudio, open the dataframe.R sample code contained within this folder: */examples/src/main/r
+- Add this code to the beginning of your script, per these instructions about using with RStudio: https://github.com/apache/spark/tree/master/R#using-sparkr-from-rstudio
+
+```
+#Set this line to where Spark is installed
+Sys.setenv(SPARK_HOME="*/spark-1.4.0-bin-hadoop2.6")
+
+# This line loads SparkR (the R package) from the installed directory
+
+.libPaths(c(file.path(Sys.getenv("SPARK_HOME"), "R", "lib"), .libPaths()))
+
+#load the SparkR package in RStudio
+library(SparkR)
+
+#initialize the Spark local cluster in R, as ‘sc’
+sc <- sparkR.init(master="local")
+
+#initialize the sqlContext piece for SparkR DataFrame functionality
+sqlContext <- sparkRSQL.init(jsc = sc)
+```
+
+
+Follow the rest of the demo in dataframe.R to get a feel for how dataframes can be loaded into SparkR and utilized
+
+
+```
+# Create a simple local data.frame
+localDF <- data.frame(name=c("John", "Smith", "Sarah"), age=c(19, 23, 18))
+
+# Convert local data frame to a SparkR DataFrame
+df <- createDataFrame(sqlContext, localDF)
+
+# Print its schema
+printSchema(df)
+
+head(df)
+# root
+#  |-- name: string (nullable = true)
+#  |-- age: double (nullable = true)
+
+# Create a DataFrame from a JSON file
+path <- file.path(Sys.getenv("SPARK_HOME"), "examples/src/main/resources/people.json")
+peopleDF <- jsonFile(sqlContext, path)
+printSchema(peopleDF)
+
+head(peopleDF)
+
+# Register this DataFrame as a table.
+registerTempTable(peopleDF, "people")
+
+# SQL statements can be run by using the sql methods provided by sqlContext
+teenagers <- sql(sqlContext, "SELECT name FROM people WHERE age >= 13 AND age <= 19")
+
+# Call collect to get a local data.frame
+teenagersLocalDF <- collect(teenagers)
+
+# Print the teenagers in our dataset 
+print(teenagersLocalDF)
+
+# Stop the SparkContext now
+sparkR.stop()
+```
+
+By navigating in your browser to localhost:4040 (or 4041, depending on the port), you can monitor jobs and ensure that calls you are making to the Spark host are actually working.
+
+![](sparklocalhost.png)
